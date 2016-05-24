@@ -190,9 +190,15 @@ class Util
 
     /**
      * ランダムな数字を返す。
+     *
+     * （例）
+     * 10%の確率で0、20%の確率で1、20%の確率で2、50%の確率で3を返したい場合、
+     * $probabilities = array(10,20,30,40);
+     * $random_salt = ランダムな0～99の整数。
+     * この時、$salt = 30なら、2が返る。
      */
-    public static function get_random($salt, array $probabilities) {
-        if (!(0 <= $salt && $salt <= 99)) {
+    public static function get_random($random_salt, array $probabilities) {
+        if (!(0 <= $random_salt && $random_salt <= 99)) {
             throw new Exception('不正な引数。$saltの値は0～99。');
         }
         if (array_sum($probabilities) != 100) {
@@ -200,14 +206,7 @@ class Util
         }
         $prevP = 0;
         foreach ($probabilities as $idx => $nextP) {
-            // echo 'Try :: ' . $idx . PHP_EOL;
-            // echo '$salt :: ' . $salt . PHP_EOL;
-            // echo '$prevP :: ' . $prevP . PHP_EOL;
-            // echo '$nextP :: ' . $nextP . PHP_EOL;
-            // echo '$prevP + $nextP :: ' . ($prevP + $nextP) . PHP_EOL;
-            // echo '___end___' . PHP_EOL;
-            
-            if ($prevP <= $salt && $salt < ($prevP + $nextP)) {
+            if ($prevP <= $random_salt && $random_salt < ($prevP + $nextP)) {
                 return $idx;
             }
             $prevP += $nextP;
