@@ -2,15 +2,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 // （使い方）
 // 1, UnitTest基底クラスを継承して、UnitTest実行クラスを定義する。
-// 2, 'test_'を接頭辞にして、テストメソッドを定義する。
-// 3, このファイルをphpで実行する。（$ php MyUnitTest.php）
+// 2, テストメソッドを「test_」を接頭辞にして、定義する。
+// 3, このファイルをphpで実行する。（$ php MicroPHPUnit.php）
 ///////////////////////////////////////////////////////////////////////////////
 namespace MicroPHPUnit;
 
-/**
- * @var string UnitTest基底クラス
- */
-define('CLASS_NAME_OF_BASE_UNIT_TEST', 'BaseUnitTest');
+/** @var string UnitTest基底クラス */
+define('CLASS_NAME_OF_BASE_TEST_CASE', 'TestCase');
 
 /**
  * ビルトイン関数time()のOverride。
@@ -37,7 +35,7 @@ class ExampleClass
 /**
  * UnitTest実行クラス
  */
-class ExamleClassTest extends BaseUnitTest
+class ExamleClassTest extends TestCase
 {
 
     private $target;
@@ -64,7 +62,7 @@ class ExamleClassTest extends BaseUnitTest
 ///////////////////////////////////////////////////////////////////////////////
 // Framework
 ///////////////////////////////////////////////////////////////////////////////
-class BaseUnitTest
+class TestCase
 {
 
     protected function assertSame($expect, $actual) {
@@ -115,14 +113,14 @@ class UnitTestController
      * @return array
      */
     private function getDeclaredClassesOfUT($namespaceName) {
-        $baseUtClsName = $namespaceName . '\\' . CLASS_NAME_OF_BASE_UNIT_TEST;
+        $baseTestClsName = $namespaceName . '\\' . CLASS_NAME_OF_BASE_TEST_CASE;
         $utClsNames = array_filter(get_declared_classes(),
-            function ($clsName) use ($namespaceName, $baseUtClsName) {
+            function ($clsName) use ($namespaceName, $baseTestClsName) {
                 return
                     // この名前空間のクラス
                     substr($clsName, 0, strlen($namespaceName)) === $namespaceName
                     // UT実行クラス（＝UT基底クラスを親に持つクラス）
-                    && strpos(get_parent_class($clsName), $baseUtClsName) !== false;
+                    && strpos(get_parent_class($clsName), $baseTestClsName) !== false;
             });
         return $utClsNames;
     }
