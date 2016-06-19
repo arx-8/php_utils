@@ -1,5 +1,16 @@
 <?php
+///////////////////////////////////////////////////////////////////////////////
+// （使い方）
+// 1, UnitTest基底クラスを継承して、UnitTest実行クラスを定義する。
+// 2, 'test_'を接頭辞にして、テストメソッドを定義する。
+// 3, このファイルをphpで実行する。（$ php MyUnitTest.php）
+///////////////////////////////////////////////////////////////////////////////
 namespace MicroPHPUnit;
+
+/**
+ * @var string UnitTest基底クラス
+ */
+define('CLASS_NAME_OF_BASE_UNIT_TEST', 'BaseUnitTest');
 
 /**
  * ビルトイン関数time()のOverride。
@@ -11,13 +22,13 @@ function time() {
     return strtotime('2016/06/01 12:00:00');
 }
 
-class AnyClass
+class ExampleClass
 {
 
-    private function run() {
+    private function example() {
         $ret = array(
             'start' => time(),
-            'end' => \time(),
+            'end' => \time()
         );
         return $ret;
     }
@@ -26,22 +37,22 @@ class AnyClass
 /**
  * UnitTest実行クラス
  */
-class UnitTest extends BaseUnitTest
+class ExamleClassTest extends BaseUnitTest
 {
 
     private $target;
 
     public function __construct() {
-        $this->target = new \ReflectionClass(new AnyClass());
+        $this->target = new \ReflectionClass(new ExampleClass());
     }
 
     public function test_example() {
         // ## Arrange ##
         // ## Act ##
         /** @var \ReflectionMethod $refMtd */
-        $refMtd = $this->target->getMethod('run');
+        $refMtd = $this->target->getMethod('example');
         $refMtd->setAccessible(true);
-        $result = $refMtd->invoke(new AnyClass());
+        $result = $refMtd->invoke(new ExampleClass());
 
         // ## Assert ##
         $this->assertSame(2, count($result));
@@ -50,16 +61,15 @@ class UnitTest extends BaseUnitTest
     }
 }
 
-/**
- * Framework ********************************************************************************************************
- */
+///////////////////////////////////////////////////////////////////////////////
+// Framework
+///////////////////////////////////////////////////////////////////////////////
 class BaseUnitTest
 {
 
     protected function assertSame($expect, $actual) {
         if ($expect !== $actual) {
-            $msg = '';
-            $msg .= 'expect : ' . var_export($expect, true) . PHP_EOL;
+            $msg = 'expect : ' . var_export($expect, true) . PHP_EOL;
             $msg .= 'actual : ' . var_export($actual, true);
             throw new AssertionFailedError($msg);
         }
@@ -84,38 +94,83 @@ class AssertionFailedError extends \Exception
 }
 
 /**
- * UnitTestクラスを実行する。
- * 接頭辞が'test_'のメソッドのみ、テスト対象とする。
- *
- * @throws \Exception
+ * UnitTest実行制御クラス
  */
-function execute() {
-    $testClsName = 'MicroPHPUnit\UnitTest';
-    $methods = get_class_methods($testClsName);
-    if (count($methods) === 0) {
-        throw new \Exception('*** Error. Method Not Found. ***');
+class UnitTestController
+{
+
+    public function run() {
+        $utClsNames = $this->getDeclaredClassesOfUT(__NAMESPACE__);
+        foreach ($utClsNames as $utClsName) {
+            $utMethodNames = $this->getClassMethodsOfUT($utClsName);
+            $this->executeUT($utClsName, $utMethodNames);
+        }
+        echo '*** All UnitTest passed! ***' . PHP_EOL;
     }
 
-    // 接頭辞が'test_'のメソッドのみ、テスト対象とする
-    $testMethods = array_filter($methods,
-        function ($mtd) {
-            $prefix = 'test_';
-            return substr($mtd, 0, strlen($prefix)) === $prefix;
-        });
-    if (count($testMethods) === 0) {
-        throw new \Exception('*** Error. TestMethod Not Found. ***');
+    /**
+     * 引数名前空間で、UnitTest実行用のクラス名のリストを返す。
+     *
+     * @param string $namespaceName
+     * @return array
+     */
+    private function getDeclaredClassesOfUT($namespaceName) {
+        $baseUtClsName = $namespaceName . '\\' . CLASS_NAME_OF_BASE_UNIT_TEST;
+        $utClsNames = array_filter(get_declared_classes(),
+            function ($clsName) use ($namespaceName, $baseUtClsName) {
+                return
+                    // この名前空間のクラス
+                    substr($clsName, 0, strlen($namespaceName)) === $namespaceName
+                    // UT実行クラス（＝UT基底クラスを親に持つクラス）
+                    && strpos(get_parent_class($clsName), $baseUtClsName) !== false;
+            });
+        return $utClsNames;
     }
 
-    echo PHP_EOL;
-    echo '*** Execute UnitTest. ***' . PHP_EOL;
-    echo PHP_EOL;
-    $testCls = new $testClsName();
-    foreach ($testMethods as $mtd) {
-        echo "* running '$mtd()' ... ";
-        $testCls->$mtd();
-        echo 'passed.' . PHP_EOL;
+    /**
+     * 引数クラス内で、UnitTest用のメソッド名のリストを返す。
+     *
+     * @param string $clsName
+     * @throws \Exception
+     * @return array
+     */
+    private function getClassMethodsOfUT($clsName) {
+        $methodNames = get_class_methods($clsName);
+        if (count($methodNames) === 0) {
+            throw new \Exception("*** Error. Method not found in $clsName. ***");
+        }
+
+        // 接頭辞が'test_'のメソッドのみ、UnitTest用メソッドとする。
+        $utMethodNames = array_filter($methodNames,
+            function ($mtd) {
+                $prefix = 'test_';
+                return substr($mtd, 0, strlen($prefix)) === $prefix;
+            });
+        if (count($utMethodNames) === 0) {
+            throw new \Exception("*** Error. TestMethod not found in $clsName. ***");
+        }
+
+        return $utMethodNames;
     }
-    echo PHP_EOL;
-    echo '*** All UnitTest passed! ***' . PHP_EOL;
+
+    /**
+     * @param string $utClsName
+     * @param string $utMethodNames
+     */
+    private function executeUT($utClsName, $utMethodNames) {
+        echo PHP_EOL;
+        echo "*** Execute '$utClsName' ***" . PHP_EOL;
+        echo PHP_EOL;
+        $utObj = new $utClsName();
+        foreach ($utMethodNames as $mtd) {
+            echo "* running '$mtd()' ... ";
+            $utObj->$mtd();
+            echo 'passed.' . PHP_EOL;
+        }
+        echo PHP_EOL;
+    }
 }
-execute();
+
+// execute
+$ut = new UnitTestController();
+$ut->run();
