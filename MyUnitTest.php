@@ -1,105 +1,121 @@
 <?php
+namespace MicroPHPUnit;
 
-class Target
+/**
+ * ビルトイン関数time()のOverride。
+ * この名前空間内の全てのtime()は、この関数が実行される。
+ *
+ * @return number
+ */
+function time() {
+    return strtotime('2016/06/01 12:00:00');
+}
+
+class AnyClass
 {
 
-    /**
-     * 確率を配列で指定して、そのキーを返す。
-     *
-     * （例）
-     * 10%の確率で0、20%の確率で1、20%の確率で2、50%の確率で3を返したい場合、
-     * $randomSalt = ランダムな0～99の整数。
-     * $rateList = array(10,20,20,50);
-     * この時、$randomSalt = 30なら、2が返る。
-     */
-    public static function getRandomSpecifyRate($randomSalt, array $rateList) {
-        if (!(0 <= $randomSalt && $randomSalt <= 99)) {
-            throw new InvalidArgumentException('$randomSalt range in 0-99');
-        }
-        if (array_sum($rateList) != 100) {
-            throw new InvalidArgumentException('$rateList sum = 100');
-        }
-        $range = 0;
-        foreach ($rateList as $key => $rate) {
-            $range += $rate;
-            if ($randomSalt < $range) {
-                return $key;
-            }
-        }
+    private function run() {
+        $ret = array(
+            'start' => time(),
+            'end' => \time(),
+        );
+        return $ret;
     }
 }
 
-class TargetTest extends BaseUnitTest
+/**
+ * UnitTest実行クラス
+ */
+class UnitTest extends BaseUnitTest
 {
 
-    public static function test1() {
-        // ## Arrange ##
-        $randomSalt = 0;
-        $rateList = array(
-            'patternA' => 10,
-            'patternB' => 60,
-            'patternC' => 20,
-            'patternD' => 10
-        );
+    private $target;
 
+    public function __construct() {
+        $this->target = new \ReflectionClass(new AnyClass());
+    }
+
+    public function test_example() {
+        // ## Arrange ##
         // ## Act ##
-        $result = Target::getRandomSpecifyRate($randomSalt, $rateList);
+        /** @var \ReflectionMethod $refMtd */
+        $refMtd = $this->target->getMethod('run');
+        $refMtd->setAccessible(true);
+        $result = $refMtd->invoke(new AnyClass());
 
         // ## Assert ##
-        self::assertEquals('patternA', $result);
-    }
-
-    public static function test_exception1() {
-        // ## Arrange ##
-        $randomSalt = 100;
-        $rateList = array(
-            10,
-            20,
-            20,
-            50
-        );
-
-        // ## Act ##
-        try {
-            $result = Target::getRandomSpecifyRate($randomSalt, $rateList);
-            self::fail();
-        } catch (InvalidArgumentException $e) {
-            // ## Assert ##
-            self::assertEquals('$randomSalt range in 0-99', $e->getMessage());
-        }
+        $this->assertSame(2, count($result));
+        $this->assertSame(strtotime('2016/06/01 12:00:00'), $result['start']);
+        $this->assertSame(strtotime('2016/06/01 12:00:00'), $result['end']);
     }
 }
 
+/**
+ * Framework ********************************************************************************************************
+ */
 class BaseUnitTest
 {
 
-    protected static function assertEquals($expect, $actual) {
-        if ($expect != $actual) {
-            $msg = PHP_EOL;
-            $msg .= '*** Assert fail. ***' . PHP_EOL;
-            $msg .= '* expect : ' . $expect . PHP_EOL;
-            $msg .= '* actual : ' . $actual . PHP_EOL;
-            $msg .= '***' . PHP_EOL;
-            throw new Exception($msg);
+    protected function assertSame($expect, $actual) {
+        if ($expect !== $actual) {
+            $msg = '';
+            $msg .= 'expect : ' . var_export($expect, true) . PHP_EOL;
+            $msg .= 'actual : ' . var_export($actual, true);
+            throw new AssertionFailedError($msg);
         }
     }
 
-    protected static function fail() {
-        $msg = PHP_EOL;
-        $msg .= '*** Assert fail. ***' . PHP_EOL;
-        $msg .= '* Don\'t reach here.' . PHP_EOL;
-        $msg .= '***' . PHP_EOL;
-        throw new Exception($msg);
+    protected function fail() {
+        throw new AssertionFailedError("Don't reach here.");
     }
 }
 
+class AssertionFailedError extends \Exception
+{
+
+    public function __construct($message) {
+        $this->message = PHP_EOL;
+        $this->message .= PHP_EOL;
+        $this->message .= '*** Assert fail. ***' . PHP_EOL;
+        $this->message .= $message . PHP_EOL;
+        $this->message .= '***' . PHP_EOL;
+        $this->message .= PHP_EOL;
+    }
+}
+
+/**
+ * UnitTestクラスを実行する。
+ * 接頭辞が'test_'のメソッドのみ、テスト対象とする。
+ *
+ * @throws \Exception
+ */
 function execute() {
-    $testClsName = 'TargetTest';
+    $testClsName = 'MicroPHPUnit\UnitTest';
     $methods = get_class_methods($testClsName);
-    foreach ($methods as $mtd) {
-        $testClsName::$mtd();
+    if (count($methods) === 0) {
+        throw new \Exception('*** Error. Method Not Found. ***');
+    }
+
+    // 接頭辞が'test_'のメソッドのみ、テスト対象とする
+    $testMethods = array_filter($methods,
+        function ($mtd) {
+            $prefix = 'test_';
+            return substr($mtd, 0, strlen($prefix)) === $prefix;
+        });
+    if (count($testMethods) === 0) {
+        throw new \Exception('*** Error. TestMethod Not Found. ***');
+    }
+
+    echo PHP_EOL;
+    echo '*** Execute UnitTest. ***' . PHP_EOL;
+    echo PHP_EOL;
+    $testCls = new $testClsName();
+    foreach ($testMethods as $mtd) {
+        echo "* running '$mtd()' ... ";
+        $testCls->$mtd();
+        echo 'passed.' . PHP_EOL;
     }
     echo PHP_EOL;
-    echo 'All test passed!' . PHP_EOL;
+    echo '*** All UnitTest passed! ***' . PHP_EOL;
 }
 execute();
