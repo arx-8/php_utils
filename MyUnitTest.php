@@ -7,8 +7,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 namespace MicroPHPUnit;
 
-/** @var string UnitTest基底クラス */
-define('CLASS_NAME_OF_BASE_TEST_CASE', 'TestCase');
+// 外部からテスト対象をロードしてもよい。
+// require_once '/load/from/outside/ExampleClass.php';
 
 /**
  * ビルトイン関数time()のOverride。
@@ -35,7 +35,7 @@ class ExampleClass
 /**
  * UnitTest実行クラス
  */
-class ExamleClassTest extends TestCase
+class ExamleClassTest extends MicroTestCase
 {
 
     private $target;
@@ -62,7 +62,13 @@ class ExamleClassTest extends TestCase
 ///////////////////////////////////////////////////////////////////////////////
 // Framework
 ///////////////////////////////////////////////////////////////////////////////
-class TestCase
+/** @var string UnitTest基底クラス名 */
+define('CLASS_NAME_OF_BASE_TEST_CASE', 'MicroTestCase');
+
+/**
+ * UnitTest基底クラス
+ */
+class MicroTestCase
 {
 
     protected function assertSame($expect, $actual) {
